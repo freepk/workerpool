@@ -1,2 +1,1 @@
-# workerpool
-Simple worker pool
+# Simple worker pool
