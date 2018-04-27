@@ -1,9 +1,12 @@
 package workerpool
 
 import (
-	"log"
+	"sync/atomic"
 	"testing"
-	"time"
+)
+
+var (
+	testCounter = int64(0)
 )
 
 type task0 struct {
@@ -11,8 +14,7 @@ type task0 struct {
 }
 
 func (t task0) Run() {
-	log.Println(t.name)
-	time.Sleep(1 * time.Second)
+	atomic.AddInt64(&testCounter, 1)
 }
 
 type task1 struct {
@@ -20,8 +22,13 @@ type task1 struct {
 }
 
 func (t task1) Run() {
-	log.Println(t.name)
-	time.Sleep(2 * time.Second)
+	atomic.AddInt64(&testCounter, 1)
+}
+
+type task2 int
+
+func (t task2) Run() {
+	atomic.AddInt64(&testCounter, 1)
 }
 
 func TestWorkerPool128(b *testing.T) {
@@ -29,8 +36,17 @@ func TestWorkerPool128(b *testing.T) {
 	go p.Start()
 	x := &task0{name: "task0"}
 	y := &task1{name: "task1"}
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 1000000; i++ {
 		p.Run(x)
 		p.Run(y)
+	}
+}
+
+func BenchmarkPool(b *testing.B) {
+	p := NewPool(128)
+	go p.Start()
+	var t task2
+	for i := 0; i < b.N; i++ {
+		p.Run(t)
 	}
 }

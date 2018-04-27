@@ -4,59 +4,52 @@ type Task interface {
 	Run()
 }
 
-type Queue chan Task
-
 type worker struct {
-	p chan Queue
-	q Queue
-}
-
-func newWorker(p chan Queue) *worker {
-	return &worker{p: p, q: make(Queue)}
-}
-
-func (w *worker) run(t Task) {
-	t.Run()
+	queue chan chan Task
+	task  chan Task
 }
 
 func (w *worker) start() {
 	for {
-		w.p <- w.q
+		w.queue <- w.task
 		select {
-		case t := <-w.q:
-			w.run(t)
+		case task := <-w.task:
+			task.Run()
 		}
 	}
 }
 
-type Pool struct {
-	p chan Queue
-	q Queue
+func newWorker(queue chan chan Task) *worker {
+	return &worker{queue: queue, task: make(chan Task)}
 }
 
-func NewPool(n int) *Pool {
-	p := make(chan Queue, n)
-	q := make(Queue)
-	for i := 0; i < n; i++ {
-		w := newWorker(p)
+type Pool struct {
+	queue chan chan Task
+	task  chan Task
+}
+
+func NewPool(num int) *Pool {
+	queue := make(chan chan Task, num)
+	for i := 0; i < num; i++ {
+		w := newWorker(queue)
 		go w.start()
 	}
-	return &Pool{p: p, q: q}
+	return &Pool{queue: queue, task: make(chan Task)}
 }
 
 func (p *Pool) Start() {
 	for {
 		select {
-		case t := <-p.q:
-			q := <-p.p
-			q <- t
+		case task := <-p.task:
+			workerTask := <-p.queue
+			workerTask <- task
 		}
 	}
 }
 
-func (p *Pool) Stop() {
+func (p *Pool) Run(task Task) {
+	p.task <- task
 }
 
-func (p *Pool) Run(t Task) {
-	p.q <- t
+func (p *Pool) Stop() {
 }
