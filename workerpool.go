@@ -1,8 +1,6 @@
 package workerpool
 
-type Task interface {
-	Run()
-}
+type Task func()
 
 type worker struct {
 	queue chan chan Task
@@ -14,7 +12,7 @@ func (w *worker) start() {
 		w.queue <- w.task
 		select {
 		case task := <-w.task:
-			task.Run()
+			task()
 		}
 	}
 }
